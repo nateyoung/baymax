@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
 from threading import Thread
 import queue
-
+import mumbleAudio
 
 class mumbleClient(Thread):
 
     def __init__(self,mumble_q):
         Thread.__init__(self)
         self.mumble_q = mumble_q
+
+        self.ma = mumbleAudio.mumbleAudio()
+        self.ma.setDaemon(True)
+        self.ma.start()
 
     def run(self):
         print("hello from mumbleClient")
@@ -21,5 +25,10 @@ class mumbleClient(Thread):
             try:
                 self.command = self.mumble_q.get(True, 0.05)
                 print("Received command:", self.command)
+                if(self.command=="chat"):
+                    self.ma.unmute()
+                elif(self.command=="hangup"):
+                    self.ma.mute()
+
             except queue.Empty:
                 continue
