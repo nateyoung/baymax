@@ -13,6 +13,7 @@ class mumbleAudio(Thread):
     # flag to control whether to send audio to server or not
     muted = 1
 
+
     def mute(self):
         print("muting")
         self.muted = 1
@@ -20,6 +21,10 @@ class mumbleAudio(Thread):
     def unmute(self):
         print("unmuting")
         self.muted = 0
+
+    def sound_received(self, user, chunk):
+#        print("chunk size:",chunk.size,"available: ",self.outputStream.get_write_available())
+        self.outputStream.write(chunk.pcm)
 
     def __init__(self):
         Thread.__init__(self)
@@ -29,10 +34,15 @@ class mumbleAudio(Thread):
                                       #debug=self.config.getboolean('debug', 'mumbleConnection'),
                                       #certfile=args.certificate)
 
+
         self.mumble.start()  # start the mumble thread
         self.mumble.is_ready()  # wait for the connection
         #self.mumble.set_comment()
         self.mumble.users.myself.unmute()
+        self.mumble.callbacks.set_callback(pymumble.constants.PYMUMBLE_CLBK_SOUNDRECEIVED, self.sound_received)
+        self.mumble.set_receive_sound(True)
+
+
         #self.mumble.channel.send_message("hello world")
         #channel = self.mumble.channels[0]
         #channel.send_message("hello world")
@@ -43,7 +53,8 @@ class mumbleAudio(Thread):
         #print(user)
 
     def run(self):
-        CHUNK = 1024
+        #CHUNK = 1024
+        CHUNK = 2048
         FORMAT = pyaudio.paInt16
         CHANNELS = 1
         RATE = 48000
@@ -56,6 +67,15 @@ class mumbleAudio(Thread):
                         input=True,
                         #input_device_index = 1,
                         frames_per_buffer=CHUNK)
+
+        self.outputStream = p.open(format=FORMAT,
+                        channels=CHANNELS,
+                        rate=RATE,
+                        output=True,
+                        frames_per_buffer=CHUNK)
+        #self.outputStream.stop_stream()
+
+
         print("* recording")
         frames = []
 
@@ -69,6 +89,7 @@ class mumbleAudio(Thread):
             else:
                 stream.stop_stream()
                 time.sleep(0.1)
+
 
         print("* done recording")
 
