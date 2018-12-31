@@ -26,8 +26,9 @@ class mumbleAudio(Thread):
 #        print("chunk size:",chunk.size,"available: ",self.outputStream.get_write_available())
         self.outputStream.write(chunk.pcm)
 
-    def __init__(self):
+    def __init__(self, audio):
         Thread.__init__(self)
+        self.audio = audio
 
         print("hello from mumbleAudio")
         self.mumble = pymumble.Mumble("192.168.1.67", user="baymax", port=64738, password="baymax")
@@ -55,25 +56,36 @@ class mumbleAudio(Thread):
     def run(self):
         #CHUNK = 1024
         CHUNK = 2048
-        FORMAT = pyaudio.paInt16
+        #FORMAT = pyaudio.paInt16
+        FORMAT = 8
         CHANNELS = 1
-        RATE = 48000
+        #RATE = 48000
+        RATE = 16000
 
         p = pyaudio.PyAudio()
+        #p = self.audio
 
-        stream = p.open(format=FORMAT,
-                        channels=CHANNELS,
-                        rate=RATE,
-                        input=True,
-                        #input_device_index = 1,
-                        frames_per_buffer=CHUNK)
+        #stream = p.open(format=FORMAT,
+        #                channels=CHANNELS,
+        #                rate=RATE,
+        #                input=True,
+        #                #input_device_index = 1,
+        #                frames_per_buffer=CHUNK)
+
+        #stream = self.audio.open(
+        stream = p.open(
+            input=True, output=False,
+            format=FORMAT,
+            channels=CHANNELS,
+            rate=RATE,
+            frames_per_buffer=CHUNK)
 
         self.outputStream = p.open(format=FORMAT,
                         channels=CHANNELS,
                         rate=RATE,
                         output=True,
                         frames_per_buffer=CHUNK)
-        #self.outputStream.stop_stream()
+        self.outputStream.stop_stream()
 
 
         print("* recording")
@@ -95,7 +107,7 @@ class mumbleAudio(Thread):
 
         stream.stop_stream()
         stream.close()
-        p.terminate()
+        #p.terminate()
 
 #if __name__ == '__main__':
 #    args = ""

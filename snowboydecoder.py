@@ -36,7 +36,7 @@ class RingBuffer(object):
         return tmp
 
 
-def play_audio_file(fname=DETECT_DING):
+def play_audio_file(audio, fname=DETECT_DING):
     """Simple callback function to play a wave file. By default it plays
     a Ding sound.
 
@@ -45,7 +45,7 @@ def play_audio_file(fname=DETECT_DING):
     """
     ding_wav = wave.open(fname, 'rb')
     ding_data = ding_wav.readframes(ding_wav.getnframes())
-    audio = pyaudio.PyAudio()
+    #audio = pyaudio.PyAudio()
     stream_out = audio.open(
         format=audio.get_format_from_width(ding_wav.getsampwidth()),
         channels=ding_wav.getnchannels(),
@@ -55,7 +55,7 @@ def play_audio_file(fname=DETECT_DING):
     time.sleep(0.2)
     stream_out.stop_stream()
     stream_out.close()
-    audio.terminate()
+    #audio.terminate()
 
 
 class HotwordDetector(object):
@@ -103,7 +103,7 @@ class HotwordDetector(object):
         self.ring_buffer = RingBuffer(
             self.detector.NumChannels() * self.detector.SampleRate() * 5)
 
-    def start(self, detected_callback=play_audio_file,
+    def start(self, audio, detected_callback=play_audio_file,
               interrupt_check=lambda: False,
               sleep_time=0.03,
               audio_recorder_callback=None,
@@ -138,11 +138,14 @@ class HotwordDetector(object):
         self._running = True
 
         def audio_callback(in_data, frame_count, time_info, status):
+            #print("audio_callback")
             self.ring_buffer.extend(in_data)
             play_data = chr(0) * len(in_data)
             return play_data, pyaudio.paContinue
 
-        self.audio = pyaudio.PyAudio()
+        #self.audio = pyaudio.PyAudio()
+        self.audio = audio
+
         self.stream_in = self.audio.open(
             input=True, output=False,
             format=self.audio.get_format_from_width(
@@ -170,11 +173,14 @@ class HotwordDetector(object):
 
         state = "PASSIVE"
         while self._running is True:
+            #print("still true: test")
             if interrupt_check():
                 logger.debug("detect voice break")
                 break
             data = self.ring_buffer.get()
             if len(data) == 0:
+                #print("no data")
+                ##print(self.audio.get_device_count())
                 time.sleep(sleep_time)
                 continue
 
@@ -184,6 +190,7 @@ class HotwordDetector(object):
 
             #small state machine to handle recording of phrase after keyword
             if state == "PASSIVE":
+                #print("PASSIVE: test")
                 if status > 0: #key word found
                     self.recordedData = []
                     self.recordedData.append(data)
@@ -202,26 +209,34 @@ class HotwordDetector(object):
                     continue
 
             elif state == "ACTIVE":
+                #print("ACTIVE: test")
                 stopRecording = False
                 if recordingCount > recording_timeout:
+                    #print("ACTIVE: stop recording")
                     stopRecording = True
                 elif status == -2: #silence found
+                    #print("ACTIVE: stop recording - silence")
                     if silentCount > silent_count_threshold:
                         stopRecording = True
                     else:
+                        #print("ACTIVE: silentCount: ", silentCount)
                         silentCount = silentCount + 1
                 elif status == 0: #voice found
+                    #print("ACTIVE: voice")
                     silentCount = 0
 
                 if stopRecording == True:
+                    #print("ACTIVE: stoptrue")
                     fname = self.saveMessage()
                     audio_recorder_callback(fname)
                     state = "PASSIVE"
                     continue
 
+                #print("ACTIVE: recordingCount: ", recordingCount)
                 recordingCount = recordingCount + 1
                 self.recordedData.append(data)
 
+        #print("ACTIVE: finished: ")
         logger.debug("finished.")
 
     def saveMessage(self):
@@ -248,6 +263,7 @@ class HotwordDetector(object):
         Terminate audio stream. Users can call start() again to detect.
         :return: None
         """
+        #print("terminate")
         self.stream_in.stop_stream()
         self.stream_in.close()
         self.audio.terminate()

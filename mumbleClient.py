@@ -2,14 +2,16 @@
 from threading import Thread
 import queue
 import mumbleAudio
+import pyaudio
 
 class mumbleClient(Thread):
 
-    def __init__(self,mumble_q):
+    def __init__(self,mumble_q,audio):
         Thread.__init__(self)
         self.mumble_q = mumble_q
+        self.audio = audio
 
-        self.ma = mumbleAudio.mumbleAudio()
+        self.ma = mumbleAudio.mumbleAudio(self.audio)
         self.ma.setDaemon(True)
         self.ma.start()
 

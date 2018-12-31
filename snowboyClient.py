@@ -14,12 +14,12 @@ interrupted = False
 
 class snowboyClient(Thread):
 
-    def __init__(self,model,translator,mumble_q):
+    def __init__(self,model,translator,mumble_q,audio):
         Thread.__init__(self)
         self.model = model
         self.translator = translator
         self.mumble_q = mumble_q
-
+        self.audio = audio
         # capture SIGINT signal, e.g., Ctrl+C
         #signal.signal(signal.SIGINT, signal_handler)
 
@@ -32,7 +32,7 @@ class snowboyClient(Thread):
                        audio_recorder_callback=self.audioRecorderCallback,
                        interrupt_check=self.interrupt_callback,
                        silent_count_threshold=5,
-                       sleep_time=0.01)
+                       sleep_time=0.03, audio=self.audio)
 
         self.detector.terminate()
 
@@ -77,7 +77,7 @@ class snowboyClient(Thread):
         print("converting audio to text")
         r = sr.Recognizer()
         with sr.AudioFile(fname) as source:
-            audio = r.record(source)  # read the entire audio file
+            audioRec = r.record(source)  # read the entire audio file
             # recognize speech using Google Speech Recognition
             try:
                 # for testing purposes, we're just using the default API key
@@ -87,11 +87,11 @@ class snowboyClient(Thread):
                 #print(r.recognize_google(audio))
                 if(self.translator=="google"):
                     print("google listening")
-                    text = r.recognize_google(audio)
+                    text = r.recognize_google(audioRec)
                     print("fuzzy: ", process.extractOne(text, commands))
                 else:
                     print("sphinx listening")
-                    text = r.recognize_sphinx(audio)
+                    text = r.recognize_sphinx(audioRec)
                     print("fuzzy: ", process.extractOne(text, commands))
 
                 print("I heard: " + text)
@@ -106,7 +106,7 @@ class snowboyClient(Thread):
 
 
     def detectedCallback(self):
-      snowboydecoder.play_audio_file(snowboydecoder.DETECT_DING)
+      snowboydecoder.play_audio_file(self.audio, snowboydecoder.DETECT_DING)
       sys.stdout.write("recording audio...")
       sys.stdout.flush()
 
