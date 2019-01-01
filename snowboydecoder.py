@@ -36,7 +36,7 @@ class RingBuffer(object):
         return tmp
 
 
-def play_audio_file(audio, fname=DETECT_DING):
+def play_audio_file(fname=DETECT_DING):
     """Simple callback function to play a wave file. By default it plays
     a Ding sound.
 
@@ -45,7 +45,7 @@ def play_audio_file(audio, fname=DETECT_DING):
     """
     ding_wav = wave.open(fname, 'rb')
     ding_data = ding_wav.readframes(ding_wav.getnframes())
-    #audio = pyaudio.PyAudio()
+    audio = pyaudio.PyAudio()
     stream_out = audio.open(
         format=audio.get_format_from_width(ding_wav.getsampwidth()),
         channels=ding_wav.getnchannels(),
@@ -55,7 +55,7 @@ def play_audio_file(audio, fname=DETECT_DING):
     time.sleep(0.2)
     stream_out.stop_stream()
     stream_out.close()
-    #audio.terminate()
+    audio.terminate()
 
 
 class HotwordDetector(object):
@@ -75,8 +75,8 @@ class HotwordDetector(object):
     def __init__(self, decoder_model,
                  resource=RESOURCE_FILE,
                  sensitivity=[],
-                 audio_gain=1):
-
+                 audio_gain=1,
+                 snowboy_ring_buffer=None):
         tm = type(decoder_model)
         ts = type(sensitivity)
         if tm is not list:
@@ -100,10 +100,11 @@ class HotwordDetector(object):
         if len(sensitivity) != 0:
             self.detector.SetSensitivity(sensitivity_str.encode())
 
-        self.ring_buffer = RingBuffer(
-            self.detector.NumChannels() * self.detector.SampleRate() * 5)
+        self.ring_buffer = snowboy_ring_buffer
+        #self.ring_buffer = RingBuffer(
+        #    self.detector.NumChannels() * self.detector.SampleRate() * 5)
 
-    def start(self, audio, detected_callback=play_audio_file,
+    def start(self, detected_callback=play_audio_file,
               interrupt_check=lambda: False,
               sleep_time=0.03,
               audio_recorder_callback=None,
@@ -143,17 +144,17 @@ class HotwordDetector(object):
             play_data = chr(0) * len(in_data)
             return play_data, pyaudio.paContinue
 
-        #self.audio = pyaudio.PyAudio()
-        self.audio = audio
+        # replace pyaudio input stream with ring buffer input from parent thread
+        self.audio = pyaudio.PyAudio()
 
-        self.stream_in = self.audio.open(
-            input=True, output=False,
-            format=self.audio.get_format_from_width(
-                self.detector.BitsPerSample() / 8),
-            channels=self.detector.NumChannels(),
-            rate=self.detector.SampleRate(),
-            frames_per_buffer=2048,
-            stream_callback=audio_callback)
+        #self.stream_in = self.audio.open(
+        #    input=True, output=False,
+        #    format=self.audio.get_format_from_width(
+        #        self.detector.BitsPerSample() / 8),
+        #    channels=self.detector.NumChannels(),
+        #    rate=self.detector.SampleRate(),
+        #    frames_per_buffer=2048,
+        #    stream_callback=audio_callback)
 
         if interrupt_check():
             logger.debug("detect voice return")

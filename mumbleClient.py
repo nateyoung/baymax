@@ -6,12 +6,11 @@ import pyaudio
 
 class mumbleClient(Thread):
 
-    def __init__(self,mumble_q,audio):
+    def __init__(self,mumble_q,mumble_ring_buffer):
         Thread.__init__(self)
         self.mumble_q = mumble_q
-        self.audio = audio
 
-        self.ma = mumbleAudio.mumbleAudio(self.audio)
+        self.ma = mumbleAudio.mumbleAudio(mumble_ring_buffer)
         self.ma.setDaemon(True)
         self.ma.start()
 

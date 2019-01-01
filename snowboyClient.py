@@ -14,17 +14,17 @@ interrupted = False
 
 class snowboyClient(Thread):
 
-    def __init__(self,model,translator,mumble_q,audio):
+    def __init__(self,model,translator,mumble_q,snowboy_ring_buffer):
         Thread.__init__(self)
         self.model = model
         self.translator = translator
         self.mumble_q = mumble_q
-        self.audio = audio
+        self.snowboy_ring_buffer = snowboy_ring_buffer
         # capture SIGINT signal, e.g., Ctrl+C
         #signal.signal(signal.SIGINT, signal_handler)
 
     def run(self):
-        self.detector = snowboydecoder.HotwordDetector(self.model, sensitivity=0.38)
+        self.detector = snowboydecoder.HotwordDetector(self.model, sensitivity=0.38, snowboy_ring_buffer=self.snowboy_ring_buffer)
         print("Listening... Press Ctrl+C to exit")
 
         # main loop
@@ -32,7 +32,7 @@ class snowboyClient(Thread):
                        audio_recorder_callback=self.audioRecorderCallback,
                        interrupt_check=self.interrupt_callback,
                        silent_count_threshold=5,
-                       sleep_time=0.03, audio=self.audio)
+                       sleep_time=0.03)
 
         self.detector.terminate()
 
@@ -106,7 +106,7 @@ class snowboyClient(Thread):
 
 
     def detectedCallback(self):
-      snowboydecoder.play_audio_file(self.audio, snowboydecoder.DETECT_DING)
+      snowboydecoder.play_audio_file(snowboydecoder.DETECT_DING)
       sys.stdout.write("recording audio...")
       sys.stdout.flush()
 

@@ -9,6 +9,22 @@ import wave
 import time
 import pyaudio
 
+class RingBuffer(object):
+    """Ring buffer to hold audio from PortAudio"""
+
+    def __init__(self, size=4096):
+        self._buf = collections.deque(maxlen=size)
+
+    def extend(self, data):
+        """Adds data to the end of buffer"""
+        self._buf.extend(data)
+
+    def get(self):
+        """Retrieves data from the beginning of buffer and clears it"""
+        tmp = bytes(bytearray(self._buf))
+        self._buf.clear()
+        return tmp
+
 class mumbleAudio(Thread):
     # flag to control whether to send audio to server or not
     muted = 1
@@ -26,9 +42,8 @@ class mumbleAudio(Thread):
 #        print("chunk size:",chunk.size,"available: ",self.outputStream.get_write_available())
         self.outputStream.write(chunk.pcm)
 
-    def __init__(self, audio):
+    def __init__(self,mumble_ring_buffer):
         Thread.__init__(self)
-        self.audio = audio
 
         print("hello from mumbleAudio")
         self.mumble = pymumble.Mumble("192.168.1.67", user="baymax", port=64738, password="baymax")
@@ -42,6 +57,7 @@ class mumbleAudio(Thread):
         self.mumble.users.myself.unmute()
         self.mumble.callbacks.set_callback(pymumble.constants.PYMUMBLE_CLBK_SOUNDRECEIVED, self.sound_received)
         self.mumble.set_receive_sound(True)
+        self.mumble_ring_buffer = mumble_ring_buffer
 
 
         #self.mumble.channel.send_message("hello world")
@@ -56,14 +72,12 @@ class mumbleAudio(Thread):
     def run(self):
         #CHUNK = 1024
         CHUNK = 2048
-        #FORMAT = pyaudio.paInt16
-        FORMAT = 8
+        FORMAT = pyaudio.paInt16
         CHANNELS = 1
         #RATE = 48000
         RATE = 16000
 
         p = pyaudio.PyAudio()
-        #p = self.audio
 
         #stream = p.open(format=FORMAT,
         #                channels=CHANNELS,
@@ -72,13 +86,12 @@ class mumbleAudio(Thread):
         #                #input_device_index = 1,
         #                frames_per_buffer=CHUNK)
 
-        #stream = self.audio.open(
-        stream = p.open(
-            input=True, output=False,
-            format=FORMAT,
-            channels=CHANNELS,
-            rate=RATE,
-            frames_per_buffer=CHUNK)
+        #stream = p.open(
+        #    input=True, output=False,
+        #    format=FORMAT,
+        #    channels=CHANNELS,
+        #    rate=RATE,
+        #    frames_per_buffer=CHUNK)
 
         self.outputStream = p.open(format=FORMAT,
                         channels=CHANNELS,
@@ -94,20 +107,19 @@ class mumbleAudio(Thread):
         #for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
         while True:
             if self.muted==0:
-                if stream.is_stopped():
-                    stream.start_stream()
-
-                self.mumble.sound_output.add_sound(stream.read(CHUNK))  # send a piece of audio to mumble
+                self.mumble.sound_output.add_sound(self.mumble_ring_buffer.get())  # send a piece of audio to mumble
+                #ding_wav = wave.open('testing.wav', 'rb')
+                #ding_data = ding_wav.readframes(ding_wav.getnframes())
+                #self.mumble.sound_output.add_sound(ding_data)  # send a piece of audio to mumble
+                #break
             else:
-                stream.stop_stream()
+                self.mumble_ring_buffer.get()
                 time.sleep(0.1)
 
 
         print("* done recording")
 
-        stream.stop_stream()
-        stream.close()
-        #p.terminate()
+        p.terminate()
 
 #if __name__ == '__main__':
 #    args = ""
